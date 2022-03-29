@@ -1,0 +1,27 @@
+#!/bin/bash
+
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+GIT_DIR="$HOME/.dotfiles"
+DOTFILES_BACKUP="$HOME/.dotfiles_backup"
+
+git clone --bare https://github.com/randomzy/dotfiles.git $GIT_DIR
+
+function dotfiles()
+{
+   /usr/bin/git --git-dir=$GIT_DIR --work-tree=$HOME $@
+}
+
+dotfiles checkout
+if [ $? = 0 ]; then
+	echo -e "${GREEN}Checkout dotfiles${NC}"
+else
+	mkdir -p $DOTFILES_BACKUP
+	echo -e "${YELLOW}Backing up pre-existing dot files in${NC} $DOTFILES_BACKUP"	
+	dotfiles checkout 2>&1 | grep -E "\s+\." | awk {'print $1'} | xargs -I{} mv {} $DOTFILES_BACKUP
+fi
+dotfiles checkout
+dotfiles config status.showUntrackedFiles no
