@@ -1,27 +1,51 @@
 #!/bin/bash
 
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
+green='\033[0;32m'
+yellow='\033[0;33m'
+red='\033[0;31m'
+no_color='\033[0m'
 
-GIT_DIR="$HOME/.dotfiles"
-DOTFILES_BACKUP="$HOME/.dotfiles_backup"
+git_dir="$HOME/.dotfiles"
+dotfiles_backup_dir="$HOME/.dotfiles_backup"
 
-git clone --bare https://github.com/randomzy/dotfiles.git $GIT_DIR
+git clone --bare https://github.com/randomzy/dotfiles.git $git_dir || exit 1
 
 function dotfiles()
 {
-   /usr/bin/git --git-dir=$GIT_DIR --work-tree=$HOME $@
+   /usr/bin/git --git-dir=$git_dir --work-tree=$HOME $@
 }
+
+function pmv()
+{
+	cp --parents -v -l -- $1 $2
+	rm -- $1
+}
+
+pushd $HOME >/dev/null
+
+dotfiles checkout 2>/dev/null
+if [ $? = 0 ]; then
+	echo -e "${green}Done!${no_color}"
+	exit 0
+else
+	mkdir -p $dotfiles_backup_dir
+	echo -e "${yellow}Backing up conflicting dot files${no_color}"
+	conflicting="$(dotfiles checkout 2>&1 | grep -E "^\s+" | awk {'print $1'})"
+	for file in $conflicting; do
+		if [[ -f $file ]]; then
+			pmv $file $dotfiles_backup_dir
+		fi
+	done
+fi
 
 dotfiles checkout
 if [ $? = 0 ]; then
-	echo -e "${GREEN}Checkout dotfiles${NC}"
+	echo -e "${green}Done!${no_color}"
+	dotfiles config status.showUntrackedFiles no
 else
-	mkdir -p $DOTFILES_BACKUP
-	echo -e "${YELLOW}Backing up pre-existing dot files in${NC} $DOTFILES_BACKUP"	
-	dotfiles checkout 2>&1 | grep -E "\s+\." | awk {'print $1'} | xargs -I{} mv {} $DOTFILES_BACKUP
+	echo -e "${red}Could not bootstrap dotfiles!${no_color}" >&2
+	rm -rf $git_dir $dotfiles_backup_dir
+	exit 2
 fi
-dotfiles checkout
-dotfiles config status.showUntrackedFiles no
+
+popd >/dev/null
