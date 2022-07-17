@@ -1,0 +1,46 @@
+#!/bin/bash
+
+function usage()
+{
+	echo "Usage: $0 [OPTION] [FILE]"
+	echo "-l length of generated passwords, default is 16"
+	echo "-c count of generated passwords, default is 1"
+	echo "-s character set, default is alphanumerical"
+	echo "-h help"
+	exit 1
+}
+
+function check-positive-integer()
+{
+	echo "$1" | grep -Eqo '^[0-9]+$'
+	return $?
+}
+
+pw_length=16
+pw_count=1
+pw_set="a-zA-Z0-9"
+file=
+
+while getopts "l:c:s:h" arg; do
+	case $arg in
+		l)
+			check-positive-integer $OPTARG || usage
+			pw_length="$OPTARG"
+			;;
+		c)
+			check-positive-integer $OPTARG || usage
+			pw_count="$OPTARG"
+			;;
+		s)
+			pw_set="$OPTARG"
+			;;
+		h)
+			usage
+			;;
+	esac
+done
+shift $(($OPTIND - 1))
+
+file=$1
+
+tr -dc $pw_set < /dev/urandom | fold -w $pw_length | head -n $pw_count
