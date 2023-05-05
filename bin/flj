@@ -1,0 +1,39 @@
+#!/bin/bash
+
+function help()
+{
+	echo "$0 [NAME...]"
+	echo "looks for .vscode/launch.json in parent directories and lists all command lines in the format <configuration name> : <command line>"
+	echo "if NAME is specified looks for those names and prints only them"
+}
+
+while getopts ":h" option; do
+	case $option in
+		h) 
+			help
+			exit
+		;;
+	esac
+done
+
+whereJSON=".vscode/launch.json"
+
+# search in parent directories
+path=$(pwd)
+while [[ $path != "" && ! -e "$path/$whereJSON" ]]; do
+	path=${path%/*}
+done
+
+if [[ $path == "" ]]; then
+	echo "Could not find .vscode/launch.json in parent directories"
+	exit 1
+fi
+
+path_to_json="$path/${whereJSON}"
+
+# remove comments from json
+sed -E "s|//.*||g;" ${path_to_json} |\
+# remove newlines, then remove traling commas
+tr '\n' ' ' | sed -E "s/[[:space:]]//g; s/,([]}])/\1/g" |\
+# parse command lines
+jq '.configurations | .[] | [.name, .args[]] | join(" ")' | sed -E "s/\"//g; s/(^[A-Za-z0-9]+)/\1: /g" | sed 's|\${workspaceFolder}|'"${path}"'|'

@@ -1,0 +1,50 @@
+#!/bin/bash
+
+function help()
+{
+	echo "$0 [NAME...]"
+	echo "looks for .vscode/launch.json in parent directories and lists all command lines in the format <configuration name> : <command line>"
+	echo "if NAME is specified looks for those names and prints only them"
+}
+
+while getopts ":h" option; do
+	case $option in
+		h) 
+			help
+			exit
+		;;
+	esac
+done
+
+whereJSON=".vscode/launch.json"
+
+path=$(pwd)
+while [[ $path != "" && ! -e "$path/$whereJSON" ]]; do
+	path=${path%/*}
+done
+
+if [[ $path == "" ]]; then
+	echo "Could not find .vscode/launch.json in parent directories"
+	exit 1
+fi
+
+command_line=""
+
+config_name=$1
+
+shift 1 
+for arg in $@; do
+	# trailing comma is not a problem
+	command_line+="\"${arg}\","
+done
+
+launch_json="{\n
+	\t\"type\": \"lldb\",\n
+	\t\"request\": \"launch\",\n
+	\t\"name\": \""${config_name}"\",\n
+	\t\"program\": \"\${command:cmake.launchTargetPath}\",\n
+	\t\"args\": [${command_line}]\n
+	\t\"cwd\": \"\${workspaceFolder}\"\n
+},\n"
+
+echo -e $launch_json
